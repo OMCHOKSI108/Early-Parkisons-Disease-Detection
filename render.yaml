@@ -1,0 +1,59 @@
+services:
+  - type: web
+    name: parkinsons-screening-api
+    env: python
+    plan: free
+    autoDeploy: true
+    region: oregon
+
+    # Build configuration
+    buildCommand: |
+      pip install --upgrade pip setuptools wheel
+      pip install -r app/requirements.txt
+
+    # Start command for production
+    startCommand: |
+      uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 2
+
+    # Environment variables
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.12
+      - key: PYTHONUNBUFFERED
+        value: 1
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: false
+      # Database URL - set this in Render dashboard from connected PostgreSQL service
+      - key: DATABASE_URL
+        fromDatabase:
+          name: parkinsons-db
+          property: connectionString
+      # Application model paths
+      - key: DRAWING_MODEL_PATH
+        value: models/spiral/parkinson_hog_svm_model.joblib
+      - key: DRAWING_SCALER_PATH
+        value: models/spiral/parkinson_hog_scaler.joblib
+      - key: VOICE_CSV_MODEL_PATH
+        value: models/voice/model_voice_csv_best.keras
+      - key: VOICE_AUDIO_MODEL_PATH
+        value: models/voice/model_voice_audio_spec_best.keras
+      - key: VOICE_CSV_SCALER_PATH
+        value: models/voice/model_voice_csv_scaler.joblib
+      - key: VOICE_AUDIO_SCALER_PATH
+        value: models/voice/model_voice_audio_mfcc_scaler.joblib
+      # Usage limits per user per reset period
+      - key: DRAWING_LIMIT
+        value: 10
+      - key: VOICE_LIMIT
+        value: 10
+      - key: LIMIT_RESET_HOURS
+        value: 3
+
+# PostgreSQL database service (free tier)
+databases:
+  - name: parkinsons-db
+    databaseName: parkinsons_production
+    user: postgres
+    plan: free
