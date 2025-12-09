@@ -638,7 +638,7 @@ This project is licensed under the MIT License - see LICENSE file for details.
 
 For issues, questions, or suggestions:
 - Open an issue on GitHub
-- Email: support@parkinsonsdetection.app
+- Email: omchoksi108@gmail.com
 - Documentation: See [DEPLOYMENT.md](DEPLOYMENT.md) for production setup
 
 ---
