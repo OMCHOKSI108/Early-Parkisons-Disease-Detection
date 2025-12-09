@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: parkinsons-screening-api
+    env: python
+    plan: free
+    autoDeploy: true
+    region: oregon
+
+    buildCommand: |
+      pip install --upgrade pip setuptools wheel
+      pip install -r requirements.txt
+
+    startCommand: |
+      uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 2
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.12
+      - key: PYTHONUNBUFFERED
+        value: 1
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: false
