@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Parkinson's Screening</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <!-- Login/Signup Screen -->
+  <div id="auth-screen" class="login-container">
+    <div class="login-card">
+      <h1>Parkinson's Disease Screening</h1>
+      <p class="subtitle">Experimental AI-based screening tool</p>
+      
+      <!-- Login Form -->
+      <div id="login-view">
+        <form id="login-form">
+          <div class="form-group">
+            <label for="login-id">Email or Username</label>
+            <input type="text" id="login-id" placeholder="Enter your email or username" required />
+          </div>
+          
+          <div class="form-group">
+            <label for="login-password">Password</label>
+            <input type="password" id="login-password" placeholder="Enter your password" required />
+          </div>
+          
+          <button type="submit">Login</button>
+        </form>
+        
+        <p class="switch-form">Don't have an account? <a href="#" id="show-signup">Sign up here</a></p>
+      </div>
+
+      <!-- Signup Form -->
+      <div id="signup-view" style="display: none;">
+        <form id="signup-form">
+          <div class="form-group">
+            <label for="signup-name">Full Name</label>
+            <input type="text" id="signup-name" placeholder="Enter your full name" required />
+          </div>
+
+          <div class="form-group">
+            <label for="signup-username">Username</label>
+            <input type="text" id="signup-username" placeholder="Choose a username" required />
+          </div>
+          
+          <div class="form-group">
+            <label for="signup-email">Email</label>
+            <input type="email" id="signup-email" placeholder="Enter your email" required />
+          </div>
+          
+          <div class="form-group">
+            <label for="signup-password">Password</label>
+            <input type="password" id="signup-password" placeholder="Create a password" required />
+          </div>
+          
+          <button type="submit">Sign Up</button>
+        </form>
+        
+        <p class="switch-form">Already have an account? <a href="#" id="show-login">Login here</a></p>
+      </div>
+      
+      <div id="auth-error" class="error-message"></div>
+      <div id="auth-success" class="success-message"></div>
+    </div>
+  </div>
+
+  <!-- Main Application -->
+  <div id="main-app" class="container" style="display: none;">
+    <header class="app-header">
+      <div>
+        <h1>Parkinson's Disease Screening</h1>
+        <p class="subtitle">Drawing-based and Voice-based experimental models</p>
+      </div>
+      <div class="user-info">
+        <span id="user-name"></span>
+        <button id="logout-btn" class="logout-btn">Logout</button>
+      </div>
+    </header>
+
+    <div class="usage-panel">
+      <div class="usage-item">
+        <span>Drawing Usage:</span>
+        <strong><span id="drawing-usage">0</span> / 10</strong>
+      </div>
+      <div class="usage-item">
+        <span>Voice Usage:</span>
+        <strong><span id="voice-usage">0</span> / 10</strong>
+      </div>
+      <div class="usage-item">
+        <span>Resets in:</span>
+        <strong id="reset-timer">--</strong>
+      </div>
+    </div>
+
+    <div class="grid">
+      <!-- Drawing Card -->
+      <section class="card">
+        <h2>1. Drawing Model (Spiral / Wave)</h2>
+        <p>Upload a hand-drawn spiral or wave image (PNG / JPG).</p>
+
+        <form id="drawing-form">
+          <div class="file-input-wrapper">
+            <input type="file" id="drawing-file" accept="image/*" required />
+          </div>
+          <button type="submit" id="drawing-btn">Analyze Drawing</button>
+        </form>
+
+        <div class="result-container">
+          <div id="drawing-loader" class="loader"></div>
+          <div id="drawing-result" class="result-box"></div>
+        </div>
+      </section>
+
+      <!-- Voice Card -->
+      <section class="card">
+        <h2>2. Voice Model (Audio)</h2>
+        <p>Upload a short voice recording in <strong>.wav</strong> format.</p>
+
+        <form id="voice-form">
+          <div class="file-input-wrapper">
+            <input type="file" id="voice-file" accept="audio/wav" required />
+          </div>
+          <button type="submit" id="voice-btn">Analyze Voice</button>
+        </form>
+
+        <div class="result-container">
+          <div id="voice-loader" class="loader"></div>
+          <div id="voice-result" class="result-box"></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- History Panel -->
+    <section class="history-panel">
+      <div class="history-header">
+        <h2>Analysis History</h2>
+        <button id="refresh-history" class="refresh-btn">Refresh</button>
+      </div>
+      <div id="history-list" class="history-list">
+        <p class="empty-history">No analysis history yet. Start by uploading a file above.</p>
+      </div>
+    </section>
+
+    <section class="disclaimer">
+      <h3>Important Disclaimer</h3>
+      <p>
+        These models are experimental and intended only for academic and research purposes.
+        They must <strong>not</strong> be used for real medical diagnosis or treatment decisions.
+        Always consult with qualified healthcare professionals for medical advice.
+      </p>
+    </section>
+  </div>
+
+  <script>
+    let currentUser = null;
+
+    const authScreen = document.getElementById("auth-screen");
+    const mainApp = document.getElementById("main-app");
+    const authError = document.getElementById("auth-error");
+    const authSuccess = document.getElementById("auth-success");
+
+    const loginView = document.getElementById("login-view");
+    const signupView = document.getElementById("signup-view");
+
+    // Switch between login and signup
+    document.getElementById("show-signup").addEventListener("click", (e) => {
+      e.preventDefault();
+      loginView.style.display = "none";
+      signupView.style.display = "block";
+      authError.textContent = "";
+      authSuccess.textContent = "";
+    });
+
+    document.getElementById("show-login").addEventListener("click", (e) => {
+      e.preventDefault();
+      signupView.style.display = "none";
+      loginView.style.display = "block";
+      authError.textContent = "";
+      authSuccess.textContent = "";
+    });
+
+    // Signup form handler
+    document.getElementById("signup-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      authError.textContent = "";
+      authSuccess.textContent = "";
+
+      const name = document.getElementById("signup-name").value.trim();
+      const username = document.getElementById("signup-username").value.trim();
+      const email = document.getElementById("signup-email").value.trim();
+      const password = document.getElementById("signup-password").value.trim();
+
+      try {
+        const resp = await fetch("/auth/signup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, username, email, password })
+        });
+
+        const data = await resp.json();
+
+        if (!resp.ok) {
+          authError.textContent = data.detail || "Signup failed";
+          return;
+        }
+
+        authSuccess.textContent = "Account created successfully! Please login.";
+        setTimeout(() => {
+          signupView.style.display = "none";
+          loginView.style.display = "block";
+          document.getElementById("signup-form").reset();
+          authSuccess.textContent = "";
+        }, 2000);
+      } catch (err) {
+        console.error(err);
+        authError.textContent = "Connection error. Please try again.";
+      }
+    });
+
+    // Login form handler
+    document.getElementById("login-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      authError.textContent = "";
+
+      const login_id = document.getElementById("login-id").value.trim();
+      const password = document.getElementById("login-password").value.trim();
+
+      try {
+        const resp = await fetch("/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ login_id, password })
+        });
+
+        if (!resp.ok) {
+          const err = await resp.json();
+          authError.textContent = err.detail || "Login failed";
+          return;
+        }
+
+        const data = await resp.json();
+        currentUser = data.user;
+        document.getElementById("user-name").textContent = currentUser.name;
+        
+        authScreen.style.display = "none";
+        mainApp.style.display = "block";
+        
+        updateUsage();
+        loadHistory();
+      } catch (err) {
+        console.error(err);
+        authError.textContent = "Connection error. Please try again.";
+      }
+    });
+
+    // Logout handler
+    document.getElementById("logout-btn").addEventListener("click", () => {
+      currentUser = null;
+      authScreen.style.display = "flex";
+      mainApp.style.display = "none";
+      document.getElementById("login-form").reset();
+    });
+
+    // Update usage statistics
+    async function updateUsage() {
+      if (!currentUser) return;
+
+      try {
+        const resp = await fetch("/auth/usage", {
+          headers: { "user-id": currentUser.id.toString() }
+        });
+
+        if (resp.ok) {
+          const data = await resp.json();
+          document.getElementById("drawing-usage").textContent = data.drawing_count;
+          document.getElementById("voice-usage").textContent = data.voice_count;
+          
+          const hours = Math.floor(data.time_until_reset_minutes / 60);
+          const mins = data.time_until_reset_minutes % 60;
+          document.getElementById("reset-timer").textContent = 
+            hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+        }
+      } catch (err) {
+        console.error("Failed to update usage:", err);
+      }
+    }
+
+    // Load history
+    async function loadHistory() {
+      if (!currentUser) return;
+
+      try {
+        const resp = await fetch("/auth/usage", {
+          headers: { "user-id": currentUser.id.toString() }
+        });
+
+        if (resp.ok) {
+          const data = await resp.json();
+          const historyList = document.getElementById("history-list");
+          
+          if (data.history && data.history.length > 0) {
+            historyList.innerHTML = data.history.map(item => {
+              const date = new Date(item.timestamp).toLocaleString();
+              const type = item.type.charAt(0).toUpperCase() + item.type.slice(1);
+              const result = item.result;
+              const label = result.predicted_label;
+              const prob = (result.prob_pd_raw || 0) * 100;
+              
+              return `
+                <div class="history-item">
+                  <div class="history-icon ${item.type}">${type.charAt(0)}</div>
+                  <div class="history-details">
+                    <div class="history-type">${type} Analysis</div>
+                    <div class="history-result">Result: <strong>${label}</strong> (${prob.toFixed(1)}% PD probability)</div>
+                    <div class="history-time">${date}</div>
+                  </div>
+                </div>
+              `;
+            }).join("");
+          } else {
+            historyList.innerHTML = '<p class="empty-history">No analysis history yet. Start by uploading a file above.</p>';
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load history:", err);
+      }
+    }
+
+    document.getElementById("refresh-history").addEventListener("click", loadHistory);
+
+    // Drawing form handler
+    const drawingForm = document.getElementById("drawing-form");
+    const drawingFileInput = document.getElementById("drawing-file");
+    const drawingResultBox = document.getElementById("drawing-result");
+    const drawingLoader = document.getElementById("drawing-loader");
+    const drawingBtn = document.getElementById("drawing-btn");
+
+    drawingForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      
+      const file = drawingFileInput.files[0];
+      if (!file) {
+        showError(drawingResultBox, "Please select an image file");
+        return;
+      }
+
+      drawingLoader.classList.add("active");
+      drawingResultBox.style.display = "none";
+      drawingResultBox.innerHTML = "";
+      drawingBtn.disabled = true;
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        const resp = await fetch("/predict/drawing", {
+          method: "POST",
+          headers: { "user-id": currentUser.id.toString() },
+          body: formData,
+        });
+
+        if (!resp.ok) {
+          const err = await resp.json();
+          showError(drawingResultBox, err.detail || resp.statusText);
+          return;
+        }
+
+        const data = await resp.json();
+        drawingResultBox.innerHTML = `
+          <div class="result-success">
+            <strong>Prediction:</strong> ${data.predicted_label}<br/>
+            <strong>Confidence:</strong> ${(data.confidence * 100).toFixed(1)}%<br/>
+            <strong>PD Probability:</strong> ${(data.prob_pd_raw * 100).toFixed(1)}%
+          </div>
+        `;
+        drawingResultBox.style.display = "block";
+        updateUsage();
+        loadHistory();
+      } catch (err) {
+        console.error(err);
+        showError(drawingResultBox, "An unexpected error occurred");
+      } finally {
+        drawingLoader.classList.remove("active");
+        drawingBtn.disabled = false;
+      }
+    });
+
+    // Voice form handler
+    const voiceForm = document.getElementById("voice-form");
+    const voiceFileInput = document.getElementById("voice-file");
+    const voiceResultBox = document.getElementById("voice-result");
+    const voiceLoader = document.getElementById("voice-loader");
+    const voiceBtn = document.getElementById("voice-btn");
+
+    voiceForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const file = voiceFileInput.files[0];
+      if (!file) {
+        showError(voiceResultBox, "Please select a WAV audio file");
+        return;
+      }
+
+      voiceLoader.classList.add("active");
+      voiceResultBox.style.display = "none";
+      voiceResultBox.innerHTML = "";
+      voiceBtn.disabled = true;
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        const resp = await fetch("/predict/voice/audio", {
+          method: "POST",
+          headers: { "user-id": currentUser.id.toString() },
+          body: formData,
+        });
+
+        if (!resp.ok) {
+          const err = await resp.json();
+          showError(voiceResultBox, err.detail || resp.statusText);
+          return;
+        }
+
+        const data = await resp.json();
+        voiceResultBox.innerHTML = `
+          <div class="result-success">
+            <strong>Prediction:</strong> ${data.predicted_label}<br/>
+            <strong>Confidence:</strong> ${(data.confidence * 100).toFixed(1)}%<br/>
+            <strong>PD Probability:</strong> ${(data.prob_pd_raw * 100).toFixed(1)}%
+          </div>
+        `;
+        voiceResultBox.style.display = "block";
+        updateUsage();
+        loadHistory();
+      } catch (err) {
+        console.error(err);
+        showError(voiceResultBox, "An unexpected error occurred");
+      } finally {
+        voiceLoader.classList.remove("active");
+        voiceBtn.disabled = false;
+      }
+    });
+
+    function showError(element, message) {
+      element.innerHTML = `<div class="result-error">${message}</div>`;
+      element.style.display = "block";
+    }
+
+    // Auto-refresh usage every 30 seconds
+    setInterval(updateUsage, 30000);
+  </script>
+</body>
+</html>
