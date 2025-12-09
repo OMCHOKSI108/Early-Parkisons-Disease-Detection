@@ -20,8 +20,8 @@ The application features user authentication, persistent storage with PostgreSQL
 
 This diagram illustrates the **end-to-end Parkinson's detection pipeline**. The system integrates voice data acquisition, preprocessing, feature engineering, and machine learning models to produce a final diagnostic prediction.
 
-![System Architecture](assets\pngs\image_1.png)  
-![Audio-based AI Detection Pipeline](assets\pngs\image_2.png)
+![System Architecture](assets/pngs/image_1.png)  
+![Audio-based AI Detection Pipeline](assets/pngs/image_2.png)
 
 **Pipeline stages:**
 - 🎙️ **Voice Input:** Patient speech samples are recorded.
@@ -33,8 +33,8 @@ This diagram illustrates the **end-to-end Parkinson's detection pipeline**. The 
 
 This model processes **128×128 Mel-spectrograms** derived from patient voice recordings. CNN layers capture local time–frequency patterns that are indicative of Parkinson's-related speech impairments.
 
-![CNN Architecture for EEG Spectrograms](assets\pngs\image_3.png) 
-![Mel-CNN Model Architecture](assets\pngs\image_4.png)
+![CNN Architecture for EEG Spectrograms](assets/pngs/image_3.png) 
+![Mel-CNN Model Architecture](assets/pngs/image_4.png)
 
 **Architecture flow:**
 - **Conv2D → MaxPooling:** Extract hierarchical spectrogram features.
@@ -45,8 +45,8 @@ This model processes **128×128 Mel-spectrograms** derived from patient voice re
 
 This model ingests **754 engineered acoustic features** (from CSV files) and learns discriminative patterns through dense layers.
 
-![MLP Architecture](assets\pngs\image_5.png)
-![MLP for Classification](assets\pngs\image_6.png)
+![MLP Architecture](assets/pngs/image_5.png)
+![MLP for Classification](assets/pngs/image_6.png)
 
 **Architecture flow:**
 - **Input layer:** 754 voice features.
@@ -58,8 +58,8 @@ This model ingests **754 engineered acoustic features** (from CSV files) and lea
 
 The final system combines predictions from both models. A **weighted fusion strategy** (0.7 CSV + 0.3 Audio) balances structured features with spectrogram-based deep learning.
 
-![Neural Networks Ensemble](assets\pngs\image_7.png)
-![Ensemble Model Architecture](assets\pngs\image_8.png)
+![Neural Networks Ensemble](assets/pngs/image_7.png)
+![Ensemble Model Architecture](assets/pngs/image_8.png)
 **Fusion strategy:**
 - Two models run in parallel (CNN + MLP).
 - Outputs are combined via weighted averaging.
