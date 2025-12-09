@@ -1,5 +1,7 @@
 # Parkinson's Disease Screening Platform
 
+![Spiral Showcase](assets/spiral_showcase.png)
+
 A comprehensive AI-powered application for early detection of Parkinson's disease using drawing analysis and voice analysis. This platform combines computer vision and deep learning techniques to provide non-invasive diagnostic screening based on spiral drawings and voice recordings.
 
 ## 🎯 Overview
@@ -9,6 +11,60 @@ This project implements a full-stack web application with machine learning model
 - **Voice Recordings**: Using MFCC, Mel-spectrograms, and ensemble deep learning models
 
 The application features user authentication, persistent storage with PostgreSQL, and production-ready deployment on Render or Railway.
+
+---
+
+## 🏗️ System Architecture
+
+### 1. Overall System Architecture (Full Project Flow)
+
+This diagram illustrates the **end-to-end Parkinson's detection pipeline**. The system integrates voice data acquisition, preprocessing, feature engineering, and machine learning models to produce a final diagnostic prediction.
+
+![System Architecture](https://www.researchgate.net/publication/391748496/figure/fig1/AS%3A11431281440323627%401747296306595/System-Architecture-for-Parkinsons-Disease-Detection-Using-Voice-and-Spiral-Image.ppm)  
+![Audio-based AI Detection Pipeline](https://www.researchgate.net/publication/358113932/figure/fig1/AS%3A1151700253581312%401651598146055/Overview-of-audio-based-AI-detection-pipeline-First-the-educational-video-game-Guess.ppm)
+
+**Pipeline stages:**
+- 🎙️ **Voice Input:** Patient speech samples are recorded.
+- ⚙️ **Feature Extraction:** Acoustic features (pitch, jitter, shimmer, MFCCs, etc.) are computed.
+- 🤖 **ML/DL Models:** CNNs process spectrograms, MLPs process tabular features.
+- 🩺 **Final Prediction:** Outputs are fused to classify Parkinson's vs. healthy control.
+
+### 2. CNN Architecture for Mel-Spectrogram Model (Audio DL Model)
+
+This model processes **128×128 Mel-spectrograms** derived from patient voice recordings. CNN layers capture local time–frequency patterns that are indicative of Parkinson's-related speech impairments.
+
+![CNN Architecture for EEG Spectrograms](https://www.researchgate.net/publication/349336662/figure/fig5/AS%3A991706367401985%401613452631426/CNN-architecture-for-EEG-spectrograms-classification.png)  
+![Mel-CNN Model Architecture](https://www.researchgate.net/publication/365373183/figure/fig3/AS%3A11431281097204051%401668488831010/Architecture-of-the-CNN-model-with-Mel-spectrogram-as-input-Mel-CNN-model.ppm)
+
+**Architecture flow:**
+- **Conv2D → MaxPooling:** Extract hierarchical spectrogram features.
+- **Flatten → Dense layers:** Transform feature maps into compact representations.
+- **Output layer (Sigmoid/Softmax):** Binary classification (Parkinson's vs. healthy).
+
+### 3. MLP Architecture for CSV Voice Features (Tabular Model)
+
+This model ingests **754 engineered acoustic features** (from CSV files) and learns discriminative patterns through dense layers.
+
+![MLP Architecture](https://www.researchgate.net/publication/265784353/figure/fig1/AS%3A669201052209156%401536561372912/Architecture-of-Multi-Layer-Perceptron-MLP.png)  
+![MLP for Classification](https://www.researchgate.net/publication/346038918/figure/fig1/AS%3A1015832423460864%401619204731295/MLP-architecture-for-classification-Here-in-Fig-1-a-simple-5-layer-feed-forward.png)
+
+**Architecture flow:**
+- **Input layer:** 754 voice features.
+- **Hidden dense layers:** Non-linear transformations capture complex relationships.
+- **Sigmoid output:** Produces probability of Parkinson's disease.
+- **Binary classification:** Healthy vs. PD.
+
+### 4. Ensemble Model Diagram (CSV + Audio Fusion)
+
+The final system combines predictions from both models. A **weighted fusion strategy** (0.7 CSV + 0.3 Audio) balances structured features with spectrogram-based deep learning.
+
+![Neural Networks Ensemble](https://www.researchgate.net/publication/334747885/figure/fig1/AS%3A786056853082112%401564421966028/A-neural-networks-ensemble.png)  
+![Ensemble Model Architecture](https://www.researchgate.net/publication/372138582/figure/fig2/AS%3A11431281172784317%401688650329598/Ensemble-model-architecture-The-ensemble-model-was-comprised-of-three-layers-each.png)
+
+**Fusion strategy:**
+- Two models run in parallel (CNN + MLP).
+- Outputs are combined via weighted averaging.
+- Final decision: Parkinson's vs. healthy control.
 
 ---
 
@@ -595,12 +651,3 @@ For issues, questions, or suggestions:
 
 ---
 
-## ⚠️ Disclaimer
-
-**This application is for screening and educational purposes only and is NOT a substitute for professional medical diagnosis.** Always consult with a qualified healthcare provider for proper diagnosis and treatment of Parkinson's disease.
-
----
-
-**Last Updated**: 2024
-**Project Status**: Active Development
-**Version**: 1.0.0
