@@ -1,0 +1,31 @@
+# Exclude version control
+.git
+.gitignore
+
+# Exclude virtual environments
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Exclude IDE files
+.vscode/
+.idea/
+
+# Exclude logs and temp files
+*.log
+temp_*.wav
+temp_*.png
+
+# Exclude datasets if not needed in container (uncomment if large)
+# dataset/
+
+# Exclude notebooks if not needed
+# noteboooks/
+
+# Exclude docs if not needed
+# docs/
+
+# Keep models/ as they are required for the app
