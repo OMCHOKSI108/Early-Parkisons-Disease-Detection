@@ -1,4 +1,4 @@
-# Parkinson's Disease Screening Platform
+# Early Parkinson's Disease Detection
 
 ![Spiral Showcase](assets/spiral_showcase.png)
 
@@ -20,8 +20,8 @@ The application features user authentication, persistent storage with PostgreSQL
 
 This diagram illustrates the **end-to-end Parkinson's detection pipeline**. The system integrates voice data acquisition, preprocessing, feature engineering, and machine learning models to produce a final diagnostic prediction.
 
-![System Architecture](https://www.researchgate.net/publication/391748496/figure/fig1/AS%3A11431281440323627%401747296306595/System-Architecture-for-Parkinsons-Disease-Detection-Using-Voice-and-Spiral-Image.ppm)  
-![Audio-based AI Detection Pipeline](https://www.researchgate.net/publication/358113932/figure/fig1/AS%3A1151700253581312%401651598146055/Overview-of-audio-based-AI-detection-pipeline-First-the-educational-video-game-Guess.ppm)
+![System Architecture](assets\pngs\image_1.png)  
+![Audio-based AI Detection Pipeline](assets\pngs\image_2.png)
 
 **Pipeline stages:**
 - 🎙️ **Voice Input:** Patient speech samples are recorded.
@@ -33,8 +33,8 @@ This diagram illustrates the **end-to-end Parkinson's detection pipeline**. The 
 
 This model processes **128×128 Mel-spectrograms** derived from patient voice recordings. CNN layers capture local time–frequency patterns that are indicative of Parkinson's-related speech impairments.
 
-![CNN Architecture for EEG Spectrograms](https://www.researchgate.net/publication/349336662/figure/fig5/AS%3A991706367401985%401613452631426/CNN-architecture-for-EEG-spectrograms-classification.png)  
-![Mel-CNN Model Architecture](https://www.researchgate.net/publication/365373183/figure/fig3/AS%3A11431281097204051%401668488831010/Architecture-of-the-CNN-model-with-Mel-spectrogram-as-input-Mel-CNN-model.ppm)
+![CNN Architecture for EEG Spectrograms](assets\pngs\image_3.png) 
+![Mel-CNN Model Architecture](assets\pngs\image_4.png)
 
 **Architecture flow:**
 - **Conv2D → MaxPooling:** Extract hierarchical spectrogram features.
@@ -45,8 +45,8 @@ This model processes **128×128 Mel-spectrograms** derived from patient voice re
 
 This model ingests **754 engineered acoustic features** (from CSV files) and learns discriminative patterns through dense layers.
 
-![MLP Architecture](https://www.researchgate.net/publication/265784353/figure/fig1/AS%3A669201052209156%401536561372912/Architecture-of-Multi-Layer-Perceptron-MLP.png)  
-![MLP for Classification](https://www.researchgate.net/publication/346038918/figure/fig1/AS%3A1015832423460864%401619204731295/MLP-architecture-for-classification-Here-in-Fig-1-a-simple-5-layer-feed-forward.png)
+![MLP Architecture](assets\pngs\image_5.png)
+![MLP for Classification](assets\pngs\image_6.png)
 
 **Architecture flow:**
 - **Input layer:** 754 voice features.
@@ -58,9 +58,8 @@ This model ingests **754 engineered acoustic features** (from CSV files) and lea
 
 The final system combines predictions from both models. A **weighted fusion strategy** (0.7 CSV + 0.3 Audio) balances structured features with spectrogram-based deep learning.
 
-![Neural Networks Ensemble](https://www.researchgate.net/publication/334747885/figure/fig1/AS%3A786056853082112%401564421966028/A-neural-networks-ensemble.png)  
-![Ensemble Model Architecture](https://www.researchgate.net/publication/372138582/figure/fig2/AS%3A11431281172784317%401688650329598/Ensemble-model-architecture-The-ensemble-model-was-comprised-of-three-layers-each.png)
-
+![Neural Networks Ensemble](assets\pngs\image_7.png)
+![Ensemble Model Architecture](assets\pngs\image_8.png)
 **Fusion strategy:**
 - Two models run in parallel (CNN + MLP).
 - Outputs are combined via weighted averaging.
