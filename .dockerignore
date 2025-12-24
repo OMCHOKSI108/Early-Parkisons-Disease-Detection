@@ -11,14 +11,16 @@ tests/
 /.git
 /.github
 /*.db
-models/*
-dataset/*# Exclude version control
+models/
+dataset/
+# Exclude version control
 .git
 .gitignore
 
 # Exclude virtual environments
 venv/
 .venv/
+ml/
 __pycache__/
 *.pyc
 *.pyo
@@ -33,13 +35,8 @@ __pycache__/
 temp_*.wav
 temp_*.png
 
-# Exclude datasets if not needed in container (uncomment if large)
-# dataset/
-
 # Exclude notebooks if not needed
-# noteboooks/
+noteboooks/
 
 # Exclude docs if not needed
-# docs/
-
-# Keep models/ as they are required for the app
+docs/
