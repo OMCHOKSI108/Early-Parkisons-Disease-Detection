@@ -1,7 +1,7 @@
 import logging
 import os
 from pathlib import Path
-from . import config
+from app import config
 
 logger = logging.getLogger(__name__)
 

@@ -11,6 +11,10 @@ from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 from passlib.context import CryptContext
 
+# Primary hashing context prefers bcrypt, but some local environments may have
+# incompatible `bcrypt` package versions. Provide a sha256 fallback and logic
+# to use it when bcrypt fails.
+
 logger = logging.getLogger(__name__)
 
 # PostgreSQL connection from environment or default
@@ -48,7 +52,9 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 # Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["bcrypt", "sha256_crypt"], deprecated="auto")
+# Separate explicit fallback context using sha256_crypt only
+_fallback_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
 
 
 class User(Base):
@@ -94,9 +100,20 @@ def get_db():
 
 def hash_password(password: str) -> str:
     """Hash a password"""
-    return pwd_context.hash(password)
+    try:
+        return pwd_context.hash(password)
+    except Exception as e:
+        logger.warning("Primary password hashing failed (%s); falling back to sha256_crypt", e)
+        return _fallback_context.hash(password)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password"""
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except Exception:
+        # try fallback verifier
+        try:
+            return _fallback_context.verify(plain_password, hashed_password)
+        except Exception:
+            return False

@@ -13,6 +13,14 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
+# Ensure the repository root is on sys.path so `import app.*` works
+# when running `python main.py` from inside the `app/` folder.
+import sys
+from pathlib import Path as _Path
+_repo_root = _Path(__file__).resolve().parent.parent
+if str(_repo_root) not in sys.path:
+    sys.path.insert(0, str(_repo_root))
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -39,13 +47,13 @@ from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-from .drawing_model import drawing_model
-from .voice_model import voice_model
-from .database import (
+from app.drawing_model import drawing_model
+from app.voice_model import voice_model
+from app.database import (
     get_db, init_db, User, History, 
     hash_password, verify_password
 )
-from .model_loader import ensure_models_present
+from app.model_loader import ensure_models_present
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -67,11 +75,30 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# NEW: serve CSS / JS
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
-# NEW: Jinja2 templates
-templates = Jinja2Templates(directory="app/templates")
+if __name__ == "__main__":
+    # Allow running via `python main.py` inside the `app/` folder
+    import uvicorn
+    port = int(os.getenv("PORT", "8000"))
+    host = os.getenv("HOST", "0.0.0.0")
+    uvicorn.run("app.main:app", host=host, port=port, log_level="info")
+
+# NEW: serve CSS / JS using absolute paths so running from `app/` works
+app_dir = Path(__file__).resolve().parent
+static_dir = app_dir / "static"
+templates_dir = app_dir / "templates"
+
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+else:
+    logger.warning("Static directory not found at %s, skipping mount", static_dir)
+
+# Jinja2 templates
+if templates_dir.exists():
+    templates = Jinja2Templates(directory=str(templates_dir))
+else:
+    logger.warning("Templates directory not found at %s", templates_dir)
+    templates = Jinja2Templates(directory=str(templates_dir))
 
 # Usage limits configuration
 USAGE_LIMITS = {"drawing": 10, "voice": 10}
@@ -185,9 +212,12 @@ async def login(credentials: Dict[str, str] = Body(...), db: Session = Depends(g
 
 
 @app.get("/auth/usage")
-async def get_usage(user_id: int = Header(...), db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.id == user_id).first()
-    
+async def get_usage(user_id: Optional[int] = Header(None), db: Session = Depends(get_db)):
+    if user_id is None:
+        user = get_or_create_guest(db)
+    else:
+        user = db.query(User).filter(User.id == user_id).first()
+
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
@@ -195,7 +225,7 @@ async def get_usage(user_id: int = Header(...), db: Session = Depends(get_db)):
     
     # Get user history
     history_records = db.query(History).filter(
-        History.user_id == user_id
+        History.user_id == user.id
     ).order_by(History.timestamp.desc()).limit(20).all()
     
     history_list = [{
@@ -214,15 +244,25 @@ async def get_usage(user_id: int = Header(...), db: Session = Depends(get_db)):
         "voice_count": user.voice_count,
         "limits": USAGE_LIMITS,
         "time_until_reset_minutes": max(0, int(time_until_reset.total_seconds() / 60)),
-        "history": history_list
+        "history": history_list,
+        "user": {
+            "id": user.id,
+            "name": user.name,
+            "username": user.username
+        }
     }
 
 
-def check_user_limit(user_id: int, prediction_type: str, db: Session):
-    user = db.query(User).filter(User.id == user_id).first()
-    
+def check_user_limit(user_id: Optional[int], prediction_type: str, db: Session) -> User:
+    # Allow anonymous usage: if no user_id provided, create or reuse a guest user
+    if user_id is None:
+        user = get_or_create_guest(db)
+    else:
+        user = db.query(User).filter(User.id == user_id).first()
+
     if not user:
-        raise HTTPException(status_code=401, detail="Please login first")
+        # Fallback to guest user if provided id is invalid
+        user = get_or_create_guest(db)
     
     # Check if limits need reset
     if datetime.utcnow() - user.last_reset > timedelta(hours=LIMIT_RESET_HOURS):
@@ -244,6 +284,7 @@ def check_user_limit(user_id: int, prediction_type: str, db: Session):
     
     setattr(user, count_key, current_count + 1)
     db.commit()
+    return user
 
 
 def add_to_history(user_id: int, prediction_type: str, result: dict, model_name: str, db: Session):
@@ -259,6 +300,25 @@ def add_to_history(user_id: int, prediction_type: str, result: dict, model_name:
     db.commit()
 
 
+def get_or_create_guest(db: Session) -> User:
+    """Return an existing guest user or create one for anonymous access."""
+    guest = db.query(User).filter(User.username == "guest").first()
+    if guest:
+        return guest
+
+    # Create minimal guest account
+    guest = User(
+        name="Guest",
+        username="guest",
+        email="guest@local",
+        password_hash=hash_password("guest")
+    )
+    db.add(guest)
+    db.commit()
+    db.refresh(guest)
+    return guest
+
+
 # ---------- Drawing endpoint ----------
 
 
@@ -268,7 +328,7 @@ def add_to_history(user_id: int, prediction_type: str, result: dict, model_name:
 @app.post("/predict/voice/audio")
 async def predict_voice_audio(
     file: UploadFile = File(...), 
-    user_id: int = Header(...), 
+    user_id: Optional[int] = Header(None), 
     db: Session = Depends(get_db)
 ):
     """
@@ -279,8 +339,8 @@ async def predict_voice_audio(
     if not file.filename or not file.filename.lower().endswith(".wav"):
         raise HTTPException(status_code=400, detail="Invalid file type. Please upload a WAV audio file")
     
-    # Check usage limit
-    check_user_limit(user_id, "voice", db)
+    # Check usage limit (returns resolved user)
+    user = check_user_limit(user_id, "voice", db)
 
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
         tmp_file.write(await file.read())
@@ -288,7 +348,7 @@ async def predict_voice_audio(
 
     try:
         result = voice_model.predict_from_audio_file(tmp_path)
-        add_to_history(user_id, "voice", result, "voice_audio_cnn", db)
+        add_to_history(user.id, "voice", result, "voice_audio_cnn", db)
     except Exception as e:
         logger.error(f"Error in voice prediction: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -302,20 +362,20 @@ async def predict_voice_audio(
 @app.post("/predict/drawing")
 async def predict_drawing(
     file: UploadFile = File(...), 
-    user_id: int = Header(...), 
+    user_id: Optional[int] = Header(None), 
     db: Session = Depends(get_db)
 ):
     # Validate file type
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Invalid file type. Please upload an image file (PNG, JPG, JPEG)")
     
-    # Check usage limit
-    check_user_limit(user_id, "drawing", db)
+    # Check usage limit (returns resolved user)
+    user = check_user_limit(user_id, "drawing", db)
 
     file_bytes = await file.read()
     try:
         result = drawing_model.predict_from_bytes(file_bytes)
-        add_to_history(user_id, "drawing", result, "drawing_hog_svm", db)
+        add_to_history(user.id, "drawing", result, "drawing_hog_svm", db)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -369,7 +429,7 @@ async def predict_voice_ensemble(
 @app.post("/predict/voice/final-audio")
 async def predict_voice_final_audio(
     file: UploadFile = File(...), 
-    user_id: int = Header(...), 
+    user_id: Optional[int] = Header(None), 
     db: Session = Depends(get_db)
 ):
     """
@@ -382,8 +442,8 @@ async def predict_voice_final_audio(
     if not file.filename or not file.filename.lower().endswith(".wav"):
         raise HTTPException(status_code=400, detail="Invalid file type. Please upload a WAV audio file")
     
-    # Check usage limit
-    check_user_limit(user_id, "voice", db)
+    # Check usage limit (returns resolved user)
+    user = check_user_limit(user_id, "voice", db)
 
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
         tmp_file.write(await file.read())
@@ -391,7 +451,7 @@ async def predict_voice_final_audio(
 
     try:
         result = voice_model.predict_final_audio(tmp_path)
-        add_to_history(user_id, "voice", result, "voice_audio_final_ensemble", db)
+        add_to_history(user.id, "voice", result, "voice_audio_final_ensemble", db)
     except Exception as e:
         logger.error(f"Error in final voice prediction: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))

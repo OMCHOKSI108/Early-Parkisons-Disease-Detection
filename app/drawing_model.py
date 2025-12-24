@@ -10,7 +10,7 @@ from PIL import Image
 from skimage.color import rgb2gray
 from skimage.feature import hog
 
-from .config import HOG_SVM_PATH, HOG_SCALER_PATH
+from app.config import HOG_SVM_PATH, HOG_SCALER_PATH
 
 
 class DrawingModel:

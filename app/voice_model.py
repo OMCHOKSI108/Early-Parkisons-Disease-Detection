@@ -8,7 +8,7 @@ import numpy as np
 import librosa
 import tensorflow as tf
 
-from .config import (
+from app.config import (
     VOICE_CSV_MODEL_PATH,
     VOICE_CSV_SCALER_PATH,
     VOICE_CSV_COLUMNS_PATH,

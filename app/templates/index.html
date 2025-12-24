@@ -257,10 +257,65 @@
     // Logout handler
     document.getElementById("logout-btn").addEventListener("click", () => {
       currentUser = null;
-      authScreen.style.display = "flex";
-      mainApp.style.display = "none";
+      // return to guest mode
+      initGuest();
       document.getElementById("login-form").reset();
     });
+
+    // Initialize guest session and show main app (skip login/signup)
+    async function initGuest() {
+      try {
+        // Hide auth UI
+        authScreen.style.display = "none";
+        mainApp.style.display = "block";
+
+        // Call usage endpoint without headers to create/get guest user
+        const resp = await fetch('/auth/usage');
+        if (!resp.ok) {
+          console.warn('Failed to initialize guest session');
+          return;
+        }
+
+        const data = await resp.json();
+        // Set currentUser from response
+        currentUser = data.user || { id: null, name: 'Guest' };
+        document.getElementById('user-name').textContent = currentUser.name || 'Guest';
+
+        // Populate usage and history
+        document.getElementById('drawing-usage').textContent = data.drawing_count;
+        document.getElementById('voice-usage').textContent = data.voice_count;
+        const hours = Math.floor(data.time_until_reset_minutes / 60);
+        const mins = data.time_until_reset_minutes % 60;
+        document.getElementById('reset-timer').textContent = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+
+        // Render history
+        if (data.history && data.history.length > 0) {
+          const historyList = document.getElementById('history-list');
+          historyList.innerHTML = data.history.map(item => {
+            const date = new Date(item.timestamp).toLocaleString();
+            const type = item.type.charAt(0).toUpperCase() + item.type.slice(1);
+            const result = item.result;
+            const label = result.predicted_label;
+            const prob = (result.prob_pd_raw || 0) * 100;
+            return `
+              <div class="history-item">
+                <div class="history-icon ${item.type}">${type.charAt(0)}</div>
+                <div class="history-details">
+                  <div class="history-type">${type} Analysis</div>
+                  <div class="history-result">Result: <strong>${label}</strong> (${prob.toFixed(1)}% PD probability)</div>
+                  <div class="history-time">${date}</div>
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+      } catch (err) {
+        console.error('Error initializing guest session', err);
+      }
+    }
+
+    // Auto-init guest on page load
+    initGuest();
 
     // Update usage statistics
     async function updateUsage() {
