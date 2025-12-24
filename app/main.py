@@ -2,6 +2,8 @@
 
 import os
 import warnings
+import logging
+import tempfile
 from pathlib import Path
 from typing import Dict, Optional
 from datetime import datetime, timedelta
@@ -11,18 +13,30 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
 # Suppress sklearn version warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
 
 # Suppress TensorFlow oneDNN warnings
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, File, UploadFile, HTTPException, Header, Depends
 from fastapi import Body
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi import Request
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from .drawing_model import drawing_model
@@ -31,17 +45,27 @@ from .database import (
     get_db, init_db, User, History, 
     hash_password, verify_password
 )
+from .model_loader import ensure_models_present
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Starting up the application")
+    # Ensure models are available (download from S3 if configured)
+    try:
+        ensure_models_present()
+    except Exception as e:
+        logger.warning("Model loader encountered an issue: %s", e)
+
+    init_db()
+    yield
+    # Cleanup if needed
 
 app = FastAPI(
     title="Parkinson's Disease Screening API",
     version="1.0.0",
     description="Drawing + Voice based Parkinson's screening models",
+    lifespan=lifespan
 )
-
-# Initialize database
-@app.on_event("startup")
-def startup_event():
-    init_db()
 
 # NEW: serve CSS / JS
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
@@ -52,6 +76,12 @@ templates = Jinja2Templates(directory="app/templates")
 # Usage limits configuration
 USAGE_LIMITS = {"drawing": 10, "voice": 10}
 LIMIT_RESET_HOURS = 3
+
+
+@app.get("/health")
+def health_check():
+    """Health check endpoint for load balancers and monitoring."""
+    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
 
 
 @app.get("/")
@@ -100,6 +130,8 @@ async def signup(credentials: Dict[str, str] = Body(...), db: Session = Depends(
     db.commit()
     db.refresh(new_user)
     
+    logger.info(f"New user signed up: {username} ({email})")
+    
     return {
         "success": True,
         "message": "Account created successfully",
@@ -133,6 +165,8 @@ async def login(credentials: Dict[str, str] = Body(...), db: Session = Depends(g
         user.voice_count = 0
         user.last_reset = datetime.utcnow()
         db.commit()
+    
+    logger.info(f"User logged in: {user.username}")
     
     return {
         "success": True,
@@ -248,13 +282,15 @@ async def predict_voice_audio(
     # Check usage limit
     check_user_limit(user_id, "voice", db)
 
-    tmp_path = Path("temp_voice.wav")
-    tmp_path.write_bytes(await file.read())
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
+        tmp_file.write(await file.read())
+        tmp_path = Path(tmp_file.name)
 
     try:
         result = voice_model.predict_from_audio_file(tmp_path)
         add_to_history(user_id, "voice", result, "voice_audio_cnn", db)
     except Exception as e:
+        logger.error(f"Error in voice prediction: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         if tmp_path.exists():
@@ -312,14 +348,16 @@ async def predict_voice_ensemble(
     if not file.filename.lower().endswith(".wav"):
         raise HTTPException(status_code=400, detail="Please upload a .wav audio file")
 
-    tmp_path = Path("temp_audio.wav")
-    tmp_path.write_bytes(await file.read())
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
+        tmp_file.write(await file.read())
+        tmp_path = Path(tmp_file.name)
 
     try:
         result = voice_model.predict_ensemble(features, tmp_path)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        logger.error(f"Error in voice ensemble prediction: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         if tmp_path.exists():
@@ -347,13 +385,15 @@ async def predict_voice_final_audio(
     # Check usage limit
     check_user_limit(user_id, "voice", db)
 
-    tmp_path = Path("temp_final_voice.wav")
-    tmp_path.write_bytes(await file.read())
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
+        tmp_file.write(await file.read())
+        tmp_path = Path(tmp_file.name)
 
     try:
         result = voice_model.predict_final_audio(tmp_path)
         add_to_history(user_id, "voice", result, "voice_audio_final_ensemble", db)
     except Exception as e:
+        logger.error(f"Error in final voice prediction: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         if tmp_path.exists():

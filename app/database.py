@@ -1,27 +1,48 @@
 # app/database.py
 
 import os
+import logging
 from dotenv import load_dotenv
 load_dotenv()
+from pathlib import Path
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 from passlib.context import CryptContext
 
+logger = logging.getLogger(__name__)
+
 # PostgreSQL connection from environment or default
 DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    raise ValueError("DATABASE_URL environment variable is not set")
 
-# For Render/production deployment, support both postgres:// and postgresql:// schemes
+# Allow a developer-friendly SQLite fallback when DATABASE_URL is not provided.
+# Set the environment variable `ALLOW_SQLITE_FALLBACK=false` to require DATABASE_URL.
+allow_fallback = os.getenv("ALLOW_SQLITE_FALLBACK", "true").lower() in ("1", "true", "yes")
+
+if not DATABASE_URL:
+    if allow_fallback:
+        dev_db_path = Path(__file__).resolve().parents[1] / "dev_database.db"
+        DATABASE_URL = f"sqlite:///{dev_db_path}"
+        logger.warning("DATABASE_URL not set; using local SQLite fallback at %s", dev_db_path)
+    else:
+        raise ValueError("DATABASE_URL environment variable is not set")
+
+# For PostgreSQL production, support both postgres:// and postgresql:// schemes
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+# Configure connect_args based on the backend
+connect_args = {}
+if DATABASE_URL.startswith("sqlite"):
+    connect_args = {"check_same_thread": False}
+elif "sslmode" in DATABASE_URL:
+    connect_args = {"sslmode": "require"}
 
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
-    connect_args={"sslmode": "require"} if "sslmode" in DATABASE_URL else {}
+    connect_args=connect_args
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()

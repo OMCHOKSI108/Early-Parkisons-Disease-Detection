@@ -16,6 +16,8 @@ dist/
 build/
 .coverage
 .pytest_cache/
+ml/
+ml
 .mypy_cache/
 .vscode/
 .idea/
@@ -24,3 +26,11 @@ build/
 node_modules/
 *.sqlite3
 *.db
+
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml
+.env
+parkinsons-app.zip
+

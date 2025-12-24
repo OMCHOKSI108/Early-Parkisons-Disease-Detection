@@ -1,4 +1,18 @@
-# Exclude version control
+__pycache__/
+ml/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+tests/
+.pytest_cache/
+/.git
+/.github
+/*.db
+models/*
+dataset/*# Exclude version control
 .git
 .gitignore
 
