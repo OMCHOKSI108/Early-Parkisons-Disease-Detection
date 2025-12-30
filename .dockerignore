@@ -11,7 +11,6 @@ tests/
 /.git
 /.github
 /*.db
-models/
 dataset/
 # Exclude version control
 .git

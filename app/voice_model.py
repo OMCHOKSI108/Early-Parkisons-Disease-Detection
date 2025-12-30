@@ -5,7 +5,10 @@ from typing import Dict, List
 
 import joblib
 import numpy as np
-import librosa
+try:
+    import librosa
+except Exception:
+    librosa = None
 import tensorflow as tf
 
 from app.config import (
@@ -83,8 +86,8 @@ class VoiceModel:
         max_duration: float = 3.0,
         target_width: int = 128,
     ) -> np.ndarray:
-        import librosa
-        import numpy as np
+        if librosa is None:
+            raise RuntimeError("librosa is required for audio processing. Install it (pip install librosa) and restart the app.")
 
         audio, _ = librosa.load(path, sr=sr)
         max_len = int(max_duration * sr)
@@ -109,6 +112,9 @@ class VoiceModel:
 
     @staticmethod
     def _mfcc_from_file(path: str, sr: int = 16000, n_mfcc: int = 40, max_duration: float = 3.0):
+        if librosa is None:
+            raise RuntimeError("librosa is required for MFCC extraction. Install it (pip install librosa) and restart the app.")
+
         try:
             audio, _ = librosa.load(path, sr=sr)
         except Exception as e:

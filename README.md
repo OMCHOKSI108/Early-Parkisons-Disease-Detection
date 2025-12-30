@@ -2,6 +2,14 @@
 
 ![Spiral Showcase](assets/spiral_showcase.png)
 
+## 🧪 Streamlit Demo
+
+Quick local UI built with Streamlit for drawing and voice-feature predictions:
+
+| Parkinson's prediction screen | Healthy prediction screen |
+| --- | --- |
+| ![Streamlit Parkinson Demo](assets/Streamlit_app_parkisons.png) | ![Streamlit Healthy Demo](assets/Streamlit_app_healthys.png) |
+
 A comprehensive AI-powered application for early detection of Parkinson's disease using drawing analysis and voice analysis. This platform combines computer vision and deep learning techniques to provide non-invasive diagnostic screening based on spiral drawings and voice recordings.
 
 ## 🎯 Overview
