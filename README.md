@@ -4,13 +4,16 @@
 
 ## 🧪 Streamlit Demo
 
-Quick local UI built with Streamlit for drawing and voice-feature predictions:
+Hosted demo (Streamlit Community Cloud):  
+https://early-parkisons-disease-detection-aiml.streamlit.app/
 
-Parkinson's prediction screen 
-![Streamlit Parkinson Demo](assets/Streamlit_app_parkisons.png) 
+Quick UI built with Streamlit for drawing and voice-feature predictions:
 
-Healthy prediction screen 
-![Streamlit Healthy Demo](assets/Streamlit_app_healthy.png) 
+Parkinson's prediction screen  
+![Streamlit Parkinson Demo](assets/Streamlit_app_parkisons.png)
+
+Healthy prediction screen  
+![Streamlit Healthy Demo](assets/Streamlit_app_healthy.png)
 
 A comprehensive AI-powered application for early detection of Parkinson's disease using drawing analysis and voice analysis. This platform combines computer vision and deep learning techniques to provide non-invasive diagnostic screening based on spiral drawings and voice recordings.
 
