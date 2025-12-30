@@ -5,7 +5,6 @@ from io import BytesIO
 
 import numpy as np
 import joblib
-import tensorflow as tf
 from PIL import Image
 from skimage.feature import hog
 
@@ -13,6 +12,7 @@ from app import config
 
 # ---------------- UTILS ----------------
 
+@st.cache_resource(show_spinner=False)
 def load_drawing_models():
     scaler_path = Path(config.HOG_SCALER_PATH)
     svm_path = Path(config.HOG_SVM_PATH)
@@ -57,7 +57,12 @@ def predict_drawing(img_bytes):
     }
 
 
+@st.cache_resource(show_spinner=False)
 def load_csv_model():
+    """Load voice CSV model, scaler, and columns once per process."""
+    # Lazy import TensorFlow so drawing-only usage doesn't pay the cost
+    import tensorflow as tf
+
     m = Path(config.VOICE_CSV_MODEL_PATH)
     s = Path(config.VOICE_CSV_SCALER_PATH)
     c = Path(config.VOICE_CSV_COLUMNS_PATH)
