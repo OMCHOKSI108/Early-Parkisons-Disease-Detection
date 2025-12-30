@@ -1,0 +1,7 @@
+[theme]
+base = "light"
+primaryColor = "#0f766e"            # teal buttons (matches Streamlit UI buttons)
+backgroundColor = "#f9fafb"         # light gray app background
+secondaryBackgroundColor = "#ffffff" # white cards
+textColor = "#111827"               # near-black text
+font = "sans serif"
