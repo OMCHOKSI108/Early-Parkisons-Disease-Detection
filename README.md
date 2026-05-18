@@ -15,6 +15,16 @@ Parkinson's prediction screen
 Healthy prediction screen  
 ![Streamlit Healthy Demo](assets/Streamlit_app_healthy.png)
 
+## 📓 Kaggle Notebooks
+
+### Spiral & Wave Drawing Analysis
+Full drawing model training notebook with dual approaches (EfficientNetB0 transfer learning + HOG+SVM classical ML):  
+https://www.kaggle.com/code/omchoksi04/parkisonsdiseasespiral
+
+### Voice Analysis
+Full voice model training notebook with improved architecture (residual CNN, PCA, class weights, learned ensemble):  
+https://www.kaggle.com/code/omchoksi04/parkisonsdiseasevoice
+
 A comprehensive AI-powered application for early detection of Parkinson's disease using drawing analysis and voice analysis. This platform combines computer vision and deep learning techniques to provide non-invasive diagnostic screening based on spiral drawings and voice recordings.
 
 ## 🎯 Overview
