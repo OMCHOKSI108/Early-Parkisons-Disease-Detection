@@ -2,8 +2,13 @@
 
 from pathlib import Path
 from typing import Dict, List
+import json
+import os
+import tempfile
+import zipfile
 
 import joblib
+import h5py
 import numpy as np
 try:
     import librosa
@@ -21,22 +26,93 @@ from app.config import (
 )
 
 
+def _patch_legacy_input_layers(config):
+    """Translate legacy Keras InputLayer configs to the current format."""
+    if isinstance(config, dict):
+        dtype_config = config.get("dtype")
+        if isinstance(dtype_config, dict):
+            dtype_name = dtype_config.get("config", {}).get("name")
+            if dtype_name:
+                config["dtype"] = dtype_name
+
+        if config.get("class_name") == "InputLayer" and "config" in config:
+            layer_config = config["config"]
+            batch_shape = layer_config.pop("batch_shape", None)
+            if batch_shape is not None:
+                if len(batch_shape) >= 2:
+                    layer_config["batch_size"] = batch_shape[0]
+                    layer_config["input_shape"] = batch_shape[1:]
+                else:
+                    layer_config["input_shape"] = batch_shape
+        for value in config.values():
+            _patch_legacy_input_layers(value)
+    elif isinstance(config, list):
+        for item in config:
+            _patch_legacy_input_layers(item)
+    return config
+
+
+def _load_keras_model_compat(model_path):
+    """Load a Keras model, falling back to legacy .keras config patching."""
+    try:
+        return tf.keras.models.load_model(model_path, compile=False)
+    except (ValueError, TypeError):
+        archive_path = Path(model_path)
+        if archive_path.suffix != ".keras":
+            raise
+
+        with zipfile.ZipFile(archive_path) as archive:
+            config = json.loads(archive.read("config.json"))
+
+        patched_config = _patch_legacy_input_layers(config)
+        model = tf.keras.models.model_from_json(json.dumps(patched_config))
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with zipfile.ZipFile(archive_path) as archive:
+                archive.extract("model.weights.h5", path=tmpdir)
+
+            weights_path = os.path.join(tmpdir, "model.weights.h5")
+            with h5py.File(weights_path, "r") as weights_file:
+                stored_layers = []
+                for layer_name in weights_file["layers"].keys():
+                    layer_group = weights_file["layers"][layer_name]
+                    if "vars" not in layer_group:
+                        continue
+
+                    variables = [layer_group["vars"][key][()] for key in layer_group["vars"].keys()]
+                    if variables:
+                        stored_layers.append(variables)
+
+            trainable_layers = [layer for layer in model.layers if layer.weights]
+            if len(stored_layers) == len(trainable_layers):
+                for layer, variables in zip(trainable_layers, stored_layers):
+                    layer.set_weights(variables)
+            else:
+                raise ValueError(
+                    f"Weight structure mismatch for {archive_path.name}: "
+                    f"model has {len(trainable_layers)} weight-bearing layers, "
+                    f"archive has {len(stored_layers)}"
+                )
+
+        return model
+
+
 class VoiceModel:
     def __init__(self):
         # Load CSV-based model (primary)
-        self.csv_model = tf.keras.models.load_model(VOICE_CSV_MODEL_PATH)
+        self.csv_model = _load_keras_model_compat(VOICE_CSV_MODEL_PATH)
         self.csv_scaler = joblib.load(VOICE_CSV_SCALER_PATH)
         self.csv_columns: List[str] = joblib.load(VOICE_CSV_COLUMNS_PATH)
 
         # Optional audio CNN (secondary)
         try:
-            self.audio_cnn = tf.keras.models.load_model(VOICE_AUDIO_SPEC_MODEL_PATH)
+            self.audio_cnn = _load_keras_model_compat(VOICE_AUDIO_SPEC_MODEL_PATH)
         except Exception:
             self.audio_cnn = None
 
         # Audio MFCC baseline – optional
         try:
-            self.audio_mfcc_model = tf.keras.models.load_model(VOICE_AUDIO_MFCC_MODEL_PATH)
+            self.audio_mfcc_model = _load_keras_model_compat(VOICE_AUDIO_MFCC_MODEL_PATH)
             self.audio_mfcc_scaler = joblib.load(VOICE_AUDIO_MFCC_SCALER_PATH)
         except Exception:
             self.audio_mfcc_model = None
